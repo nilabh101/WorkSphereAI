@@ -17,8 +17,8 @@ interface DashboardScreenProps {
 
 export function DashboardScreen({ role }: DashboardScreenProps) {
   const roleLabel: Record<Role, string> = {
-    superadmin: "Admin", hrmanager: "HR Manager", opsmanager: "Ops Manager",
-    supervisor: "Supervisor", employee: "Employee",
+    superadmin: "Admin", hr_manager: "HR Manager", dept_manager: "Dept Manager",
+    employee: "Employee",
   };
 
   return (

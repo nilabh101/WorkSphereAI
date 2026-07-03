@@ -128,11 +128,13 @@ export function EmployeeProfileScreen() {
             {/* Workload metrics */}
             <div className="bg-card rounded-2xl p-5 border border-border shadow-sm space-y-4">
               <h3 className="font-semibold text-foreground text-sm">Health & Workload Metrics</h3>
-              {[
-                { label: "Fatigue Index", value: selected.fatigue, color: "auto" },
-                { label: "Wellness Score", value: selected.wellness, color: "emerald" },
-                { label: "Workload", value: Math.round((selected.shifts / 22) * 100), color: "amber" },
-              ].map(m => (
+              {(
+                [
+                  { label: "Fatigue Index",  value: selected.fatigue,                            color: "auto"    },
+                  { label: "Wellness Score", value: selected.wellness,                            color: "emerald" },
+                  { label: "Workload",       value: Math.round((selected.shifts / 22) * 100),    color: "amber"   },
+                ] as { label: string; value: number; color: "auto" | "indigo" | "emerald" | "amber" | "rose" | "sky" }[]
+              ).map(m => (
                 <div key={m.label} className="space-y-1.5">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{m.label}</span>
