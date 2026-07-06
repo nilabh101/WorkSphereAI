@@ -28,7 +28,8 @@ type Page =
   | "calendar" | "attendance" | "leave" | "payroll" | "overtime"
   | "fatigue" | "wellness" | "performance" | "training" | "projects"
   | "compliance" | "reports" | "analytics" | "notifications" | "audit"
-  | "roles" | "organization" | "integrations" | "settings" | "support";
+  | "roles" | "organization" | "integrations" | "settings" | "support"
+  | "ai-insights" | "heatmap" | "rbac";
 
 interface Employee {
   id: string; name: string; role: string; dept: string; email: string;
@@ -186,6 +187,8 @@ const NAV_ITEMS: { id: Page; label: string; icon: any; roles: Role[]; group: str
   { id: "wellness", label: "Wellness", icon: Heart, roles: ["superadmin","hr_manager"], group: "intelligence" },
   { id: "performance", label: "Performance", icon: TrendingUp, roles: ["superadmin","hr_manager","dept_manager"], group: "intelligence" },
   { id: "analytics", label: "Analytics", icon: BarChart3, roles: ["superadmin","hr_manager"], group: "intelligence" },
+  { id: "ai-insights", label: "AI Insights", icon: Brain, roles: ["superadmin","hr_manager","dept_manager"], group: "intelligence" },
+  { id: "heatmap", label: "Workforce Heatmap", icon: MapPin, roles: ["superadmin","hr_manager"], group: "intelligence" },
   { id: "compliance", label: "Compliance", icon: Shield, roles: ["superadmin","hr_manager"], group: "governance" },
   { id: "reports", label: "Reports", icon: FileText, roles: ["superadmin","hr_manager"], group: "governance" },
   { id: "audit", label: "Audit Logs", icon: Activity, roles: ["superadmin"], group: "governance" },
@@ -2365,14 +2368,27 @@ function PlaceholderPage({ title, icon: Icon }: { title: string; icon: any }) {
   );
 }
 
+// ─── Feature Screen Imports ───────────────────────────────────────────────────
+import { DashboardScreen }        from "@/features/dashboard/DashboardScreen";
+import { EmployeeProfileScreen }  from "@/features/employees/EmployeeProfileScreen";
+import { ShiftPlannerScreen }     from "@/features/shifts/ShiftPlannerScreen";
+import { LeaveOTScreen }          from "@/features/leave-ot/LeaveOTScreen";
+import { AIInsightsScreen }       from "@/features/ai-insights/AIInsightsScreen";
+import { AnalyticsScreen }        from "@/features/analytics/AnalyticsScreen";
+import { HeatmapScreen }          from "@/features/heatmap/HeatmapScreen";
+import { NotificationsScreen }    from "@/features/notifications/NotificationsScreen";
+import { AuditLogsScreen }        from "@/features/audit/AuditLogsScreen";
+import { RBACScreen }             from "@/features/rbac/RBACScreen";
+import { SettingsScreen }         from "@/features/settings/SettingsScreen";
+import { StoreProvider }          from "@/store";
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
-export default function App() {
+function AppShell() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [currentPage, setCurrentPage] = useState<Page>("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [showCmdPalette, setShowCmdPalette] = useState(false);
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
 
   // Keyboard shortcut for command palette
   useEffect(() => {
@@ -2386,33 +2402,58 @@ export default function App() {
 
   if (!user) return <LoginPage onLogin={u => { setUser(u); setCurrentPage("dashboard"); }} />;
 
+  // ── Notifications for TopBar unread badge ────────────────────────────────
+  // Handled by the store; we read them via useStore inside NotificationsScreen.
+  // TopBar needs a count — use a thin wrapper.
+  const fakeNotifCount = 0; // TopBar will use store count via NotifsBadge below
+
   function renderPage() {
+    const wrap = (el: React.ReactNode) => <div className="p-6">{el}</div>;
     switch (currentPage) {
-      case "dashboard": return <DashboardPage user={user!} setPage={setCurrentPage} />;
-      case "employees": return <EmployeesPage user={user!} />;
-      case "departments": return <DepartmentsPage />;
-      case "shifts": return <ShiftPlanningPage user={user!} />;
-      case "attendance": return <AttendancePage user={user!} />;
-      case "leave": return <LeavePage user={user!} />;
-      case "overtime": return <OvertimePage />;
-      case "payroll": return <PayrollPage user={user!} />;
-      case "fatigue": return <FatigueCenterPage />;
-      case "compliance": return <CompliancePage />;
-      case "reports": return <ReportsPage />;
-      case "audit": return <AuditLogsPage />;
-      case "roles": return <RolesPage />;
-      case "analytics": return <AnalyticsPage />;
-      case "notifications": return <NotificationsPage notifications={notifications} setNotifications={setNotifications} />;
-      case "settings": return <SettingsPage user={user!} />;
-      case "support": return <SupportPage />;
-      case "wellness": return <PlaceholderPage title="Wellness Center" icon={Heart} />;
-      case "performance": return <PlaceholderPage title="Performance Management" icon={TrendingUp} />;
-      case "training": return <PlaceholderPage title="Training & Development" icon={Award} />;
-      case "projects": return <PlaceholderPage title="Projects & Tasks" icon={FolderOpen} />;
-      case "organization": return <PlaceholderPage title="Organization Management" icon={Globe} />;
-      case "integrations": return <PlaceholderPage title="Integrations" icon={Layers} />;
-      case "calendar": return <PlaceholderPage title="Calendar" icon={Calendar} />;
-      default: return <DashboardPage user={user!} setPage={setCurrentPage} />;
+      // ── New feature screens (connected to store) ─────────────────────────
+      case "dashboard":
+        return wrap(<DashboardScreen role={user!.role} onNavigate={setCurrentPage} />);
+      case "employees":
+        return wrap(<EmployeeProfileScreen />);
+      case "shifts":
+        return wrap(<ShiftPlannerScreen />);
+      case "leave":
+        return wrap(<LeaveOTScreen />);
+      case "analytics":
+        return wrap(<AnalyticsScreen />);
+      case "ai-insights":
+        return wrap(<AIInsightsScreen />);
+      case "heatmap":
+        return wrap(<HeatmapScreen />);
+      case "notifications":
+        return wrap(<NotificationsScreen />);
+      case "audit":
+        return wrap(<AuditLogsScreen />);
+      case "roles":
+        return wrap(<RBACScreen />);
+      case "settings":
+        return wrap(<SettingsScreen />);
+
+      // ── Legacy inline pages still in App.tsx ────────────────────────────
+      case "departments":      return <DepartmentsPage />;
+      case "attendance":       return <AttendancePage user={user!} />;
+      case "overtime":         return <OvertimePage />;
+      case "payroll":          return <PayrollPage user={user!} />;
+      case "fatigue":          return <FatigueCenterPage />;
+      case "compliance":       return <CompliancePage />;
+      case "reports":          return <ReportsPage />;
+      case "support":          return <SupportPage />;
+
+      // ── Placeholders ─────────────────────────────────────────────────────
+      case "wellness":      return <PlaceholderPage title="Wellness Center"          icon={Heart} />;
+      case "performance":   return <PlaceholderPage title="Performance Management"   icon={TrendingUp} />;
+      case "training":      return <PlaceholderPage title="Training & Development"   icon={Award} />;
+      case "projects":      return <PlaceholderPage title="Projects & Tasks"         icon={FolderOpen} />;
+      case "organization":  return <PlaceholderPage title="Organization Management"  icon={Globe} />;
+      case "integrations":  return <PlaceholderPage title="Integrations"             icon={Layers} />;
+      case "calendar":      return <PlaceholderPage title="Calendar"                 icon={Calendar} />;
+
+      default: return wrap(<DashboardScreen role={user!.role} onNavigate={setCurrentPage} />);
     }
   }
 
@@ -2420,12 +2461,26 @@ export default function App() {
     <div className="h-screen flex bg-background text-foreground overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
       <Sidebar currentPage={currentPage} setPage={setCurrentPage} user={user} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar user={user} setPage={setCurrentPage} onLogout={() => { setUser(null); setCurrentPage("dashboard"); }}
-          onCmdK={() => setShowCmdPalette(true)} onAI={() => setShowAI(a => !a)} notifications={notifications} />
+        <TopBar
+          user={user}
+          setPage={setCurrentPage}
+          onLogout={() => { setUser(null); setCurrentPage("dashboard"); }}
+          onCmdK={() => setShowCmdPalette(true)}
+          onAI={() => setShowAI(a => !a)}
+          notifications={[]}
+        />
         <main className="flex-1 overflow-y-auto">{renderPage()}</main>
       </div>
       {showAI && <AICopilot onClose={() => setShowAI(false)} />}
       {showCmdPalette && <CommandPalette onClose={() => setShowCmdPalette(false)} setPage={setCurrentPage} />}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <StoreProvider>
+      <AppShell />
+    </StoreProvider>
   );
 }
