@@ -81,6 +81,18 @@ const EMPLOYEES: Employee[] = [
   { id: "e13", name: "Rahul Verma", role: "Night Supervisor", dept: "Operations", email: "rahul.v@worksphere.ai", phone: "+91-86543-21098", status: "active", joinDate: "2019-04-22", shift: "Night", fatigue: 88, wellness: 38, performance: 76, attendance: 85, salary: 98000, location: "Mumbai", avatar: "RV", manager: "Vikram Singh", employeeId: "WS010" },
   { id: "e14", name: "Sunita Rao", role: "Payroll Specialist", dept: "Finance", email: "sunita.r@worksphere.ai", phone: "+91-85432-10987", status: "active", joinDate: "2020-12-08", shift: "Morning", fatigue: 22, wellness: 86, performance: 92, attendance: 98, salary: 115000, location: "Hyderabad", avatar: "SR", manager: "Priya Nair", employeeId: "WS011" },
   { id: "e15", name: "Mohammed Khan", role: "QA Lead", dept: "Engineering", email: "mohammed.k@worksphere.ai", phone: "+91-84321-09876", status: "absent", joinDate: "2021-05-19", shift: "Morning", fatigue: 46, wellness: 69, performance: 84, attendance: 82, salary: 125000, location: "Pune", avatar: "MK", manager: "Rajesh Kumar", employeeId: "WS045" },
+  { id: "e16", name: "Dr. Preethi Acharya", role: "Chief Medical Officer", dept: "ICU", email: "preethi.a@worksphere.ai", phone: "+91-82234-56789", status: "active", joinDate: "2018-01-08", shift: "Night", fatigue: 35, wellness: 77, performance: 94, attendance: 98, salary: 260000, location: "New Delhi HQ", avatar: "PA", manager: "Arjun Sharma", employeeId: "WS012" },
+  { id: "e17", name: "Maya Desai", role: "Marketing Director", dept: "Marketing", email: "maya.d@worksphere.ai", phone: "+91-81111-22233", status: "active", joinDate: "2021-03-11", shift: "Morning", fatigue: 40, wellness: 70, performance: 88, attendance: 96, salary: 160000, location: "Bangalore", avatar: "MD", manager: "Arjun Sharma", employeeId: "WS013" },
+  { id: "e18", name: "Ravi Patel", role: "Sales Manager", dept: "Sales", email: "ravi.p@worksphere.ai", phone: "+91-79999-88877", status: "active", joinDate: "2020-05-22", shift: "Morning", fatigue: 52, wellness: 63, performance: 84, attendance: 91, salary: 158000, location: "Mumbai", avatar: "RP", manager: "Arjun Sharma", employeeId: "WS014" },
+  { id: "e19", name: "Sahana Menon", role: "Customer Success Lead", dept: "Customer Success", email: "sahana.m@worksphere.ai", phone: "+91-78888-77766", status: "remote", joinDate: "2022-08-09", shift: "Flexible", fatigue: 28, wellness: 90, performance: 92, attendance: 99, salary: 130000, location: "Chennai (Remote)", avatar: "SM", manager: "Priya Nair", employeeId: "WS015" },
+  { id: "e20", name: "Geeta Singh", role: "Procurement Specialist", dept: "Procurement", email: "geeta.s@worksphere.ai", phone: "+91-76666-55544", status: "active", joinDate: "2021-09-28", shift: "Morning", fatigue: 47, wellness: 73, performance: 86, attendance: 93, salary: 110000, location: "Hyderabad", avatar: "GS", manager: "Sunita Rao", employeeId: "WS016" },
+  { id: "e21", name: "Aditya Kapoor", role: "Facilities Coordinator", dept: "Facilities", email: "aditya.k@worksphere.ai", phone: "+91-75555-44433", status: "on-leave", joinDate: "2019-10-15", shift: "Rotational", fatigue: 30, wellness: 64, performance: 80, attendance: 88, salary: 90000, location: "Bangalore", avatar: "AK", manager: "Vikram Singh", employeeId: "WS017" },
+  { id: "e22", name: "Nidhi Choudhary", role: "Training Manager", dept: "Training", email: "nidhi.c@worksphere.ai", phone: "+91-74444-33322", status: "active", joinDate: "2023-01-05", shift: "Morning", fatigue: 33, wellness: 86, performance: 91, attendance: 97, salary: 122000, location: "Bangalore", avatar: "NC", manager: "Priya Nair", employeeId: "WS018" },
+  { id: "e23", name: "Sanjay Rao", role: "Legal Counsel", dept: "Legal", email: "sanjay.r@worksphere.ai", phone: "+91-73333-22211", status: "active", joinDate: "2021-11-19", shift: "Morning", fatigue: 36, wellness: 79, performance: 88, attendance: 96, salary: 138000, location: "New Delhi", avatar: "SJ", manager: "Neha Gupta", employeeId: "WS019" },
+  { id: "e24", name: "Kavya Sinha", role: "Product Manager", dept: "Product", email: "kavya.s@worksphere.ai", phone: "+91-72222-11100", status: "active", joinDate: "2021-02-15", shift: "Morning", fatigue: 44, wellness: 72, performance: 89, attendance: 95, salary: 148000, location: "Bangalore", avatar: "KS", manager: "Pooja Iyer", employeeId: "WS020" },
+  { id: "e25", name: "Tarun Bose", role: "Finance Analyst", dept: "Finance", email: "tarun.b@worksphere.ai", phone: "+91-71111-00099", status: "absent", joinDate: "2022-03-18", shift: "Morning", fatigue: 56, wellness: 60, performance: 83, attendance: 80, salary: 98000, location: "Hyderabad", avatar: "TB", manager: "Sunita Rao", employeeId: "WS021" },
+  { id: "e26", name: "Leena Nair", role: "Talent Acquisition", dept: "Human Resources", email: "leena.n@worksphere.ai", phone: "+91-70000-99988", status: "active", joinDate: "2022-07-26", shift: "Morning", fatigue: 79, wellness: 48, performance: 81, attendance: 90, salary: 112000, location: "Bangalore", avatar: "LN", manager: "Priya Nair", employeeId: "WS022" },
+  { id: "e27", name: "Arjun Mehta", role: "Cybersecurity Analyst", dept: "Security", email: "arjun.m@worksphere.ai", phone: "+91-68888-77766", status: "active", joinDate: "2020-11-11", shift: "Night", fatigue: 66, wellness: 58, performance: 87, attendance: 92, salary: 142000, location: "Chennai", avatar: "AM", manager: "Suresh Menon", employeeId: "WS023" },
 ];
 
 const SHIFTS: Shift[] = [
@@ -91,6 +103,13 @@ const SHIFTS: Shift[] = [
   { id: "s5", employeeId: "e13", date: "2026-07-03", start: "22:00", end: "06:00", type: "night", dept: "Operations", status: "conflict" },
   { id: "s6", employeeId: "e5", date: "2026-07-04", start: "08:00", end: "17:00", type: "morning", dept: "Operations", status: "confirmed" },
   { id: "s7", employeeId: "e9", date: "2026-07-04", start: "08:00", end: "17:00", type: "morning", dept: "Engineering", status: "confirmed" },
+  { id: "s8", employeeId: "e16", date: "2026-07-03", start: "22:00", end: "06:00", type: "night", dept: "ICU", status: "confirmed" },
+  { id: "s9", employeeId: "e17", date: "2026-07-04", start: "09:00", end: "17:00", type: "morning", dept: "Marketing", status: "confirmed" },
+  { id: "s10", employeeId: "e18", date: "2026-07-05", start: "09:00", end: "17:00", type: "morning", dept: "Sales", status: "confirmed" },
+  { id: "s11", employeeId: "e19", date: "2026-07-05", start: "10:00", end: "18:00", type: "morning", dept: "Customer Success", status: "confirmed" },
+  { id: "s12", employeeId: "e21", date: "2026-07-04", start: "08:00", end: "16:00", type: "day", dept: "Facilities", status: "confirmed" },
+  { id: "s13", employeeId: "e22", date: "2026-07-06", start: "09:00", end: "17:00", type: "morning", dept: "Training", status: "pending" },
+  { id: "s14", employeeId: "e27", date: "2026-07-04", start: "22:00", end: "06:00", type: "night", dept: "Security", status: "confirmed" },
 ];
 
 const LEAVE_REQUESTS: LeaveRequest[] = [
@@ -99,6 +118,9 @@ const LEAVE_REQUESTS: LeaveRequest[] = [
   { id: "l3", employeeId: "e9", employeeName: "Amit Joshi", type: "Casual Leave", from: "2026-07-08", to: "2026-07-08", days: 1, reason: "Personal work", status: "pending", appliedOn: "2026-07-02", managerId: "u3" },
   { id: "l4", employeeId: "e11", employeeName: "Karan Malhotra", type: "Emergency Leave", from: "2026-07-10", to: "2026-07-12", days: 3, reason: "Family emergency", status: "pending", appliedOn: "2026-07-03", managerId: "u3" },
   { id: "l5", employeeId: "e6", employeeName: "Ananya Roy", type: "Annual Leave", from: "2026-07-15", to: "2026-07-22", days: 8, reason: "Planned vacation", status: "approved", appliedOn: "2026-06-20", managerId: "u1" },
+  { id: "l6", employeeId: "e21", employeeName: "Aditya Kapoor", type: "Annual Leave", from: "2026-07-05", to: "2026-07-09", days: 5, reason: "Home renovation support", status: "approved", appliedOn: "2026-07-01", managerId: "u3" },
+  { id: "l7", employeeId: "e25", employeeName: "Tarun Bose", type: "Sick Leave", from: "2026-07-11", to: "2026-07-13", days: 3, reason: "Flu recovery", status: "pending", appliedOn: "2026-07-09", managerId: "u2" },
+  { id: "l8", employeeId: "e26", employeeName: "Leena Nair", type: "Emergency Leave", from: "2026-07-12", to: "2026-07-14", days: 3, reason: "Family medical emergency", status: "pending", appliedOn: "2026-07-10", managerId: "u2" },
 ];
 
 const NOTIFICATIONS: Notification[] = [
