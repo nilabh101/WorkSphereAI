@@ -206,8 +206,8 @@ const NAV_ITEMS: { id: Page; label: string; icon: any; roles: Role[]; group: str
   { id: "overtime", label: "Overtime", icon: Timer, roles: ["superadmin","hr_manager","dept_manager"], group: "workforce" },
   { id: "payroll", label: "Payroll", icon: DollarSign, roles: ["superadmin","hr_manager","employee"], group: "workforce" },
   { id: "fatigue", label: "Fatigue Center", icon: Brain, roles: ["superadmin","hr_manager","dept_manager"], group: "intelligence" },
-  { id: "wellness", label: "Wellness", icon: Heart, roles: ["superadmin","hr_manager"], group: "intelligence" },
-  { id: "performance", label: "Performance", icon: TrendingUp, roles: ["superadmin","hr_manager","dept_manager"], group: "intelligence" },
+  { id: "wellness", label: "Wellness", icon: Heart, roles: ["superadmin","hr_manager","dept_manager","employee"], group: "intelligence" },
+  { id: "performance", label: "Performance", icon: TrendingUp, roles: ["superadmin","hr_manager","dept_manager","employee"], group: "intelligence" },
   { id: "analytics", label: "Analytics", icon: BarChart3, roles: ["superadmin","hr_manager"], group: "intelligence" },
   { id: "ai-insights", label: "AI Insights", icon: Brain, roles: ["superadmin","hr_manager","dept_manager"], group: "intelligence" },
   { id: "heatmap", label: "Workforce Heatmap", icon: MapPin, roles: ["superadmin","hr_manager"], group: "intelligence" },
@@ -2376,6 +2376,258 @@ function CommandPalette({ onClose, setPage }: { onClose: () => void; setPage: (p
   );
 }
 
+// ─── WELLNESS SCREEN ─────────────────────────────────────────────────────────
+function WellnessScreen() {
+  const { employees } = useStore();
+
+  const avg = (arr: number[]) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+
+  const wellnessAvg    = avg(employees.map(e => e.wellness));
+  const fatigueAvg     = avg(employees.map(e => e.fatigue));
+  const attendanceAvg  = avg(employees.map(e => e.attendance));
+  const atRiskCount    = employees.filter(e => e.fatigue >= 65 || e.wellness < 55).length;
+
+  const deptWellness = Object.entries(
+    employees.reduce<Record<string, number[]>>((acc, e) => {
+      if (!acc[e.dept]) acc[e.dept] = [];
+      acc[e.dept].push(e.wellness);
+      return acc;
+    }, {})
+  ).map(([dept, vals]) => ({ dept, score: avg(vals) })).sort((a, b) => b.score - a.score);
+
+  const wellnessBand = (w: number) =>
+    w >= 80 ? { label: "Excellent", cls: "text-emerald-400", bar: "bg-emerald-500" }
+    : w >= 65 ? { label: "Good",    cls: "text-sky-400",     bar: "bg-sky-500" }
+    : w >= 50 ? { label: "Fair",    cls: "text-amber-400",   bar: "bg-amber-500" }
+    :           { label: "At Risk", cls: "text-red-400",     bar: "bg-red-500" };
+
+  return (
+    <div className="space-y-8">
+      <SectionHeader title="Wellness Center" sub="Employee health, fatigue and wellbeing at a glance" />
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard label="Avg Wellness Score"    value={`${wellnessAvg}%`}    icon={Heart}        color="emerald" change={2} />
+        <KPICard label="Avg Fatigue Score"     value={`${fatigueAvg}%`}     icon={Brain}        color="amber"   change={-3} />
+        <KPICard label="Avg Attendance"        value={`${attendanceAvg}%`}  icon={CheckCircle}  color="indigo"  />
+        <KPICard label="At-Risk Employees"     value={atRiskCount}          icon={AlertTriangle} color={atRiskCount > 0 ? "red" : "emerald"} />
+      </div>
+
+      {/* Dept wellness bars */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-card rounded-2xl p-6 border border-border">
+          <h3 className="font-semibold text-foreground mb-5">Wellness by Department</h3>
+          <div className="space-y-4">
+            {deptWellness.map(({ dept, score }) => {
+              const { label, cls, bar } = wellnessBand(score);
+              return (
+                <div key={dept}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm font-medium text-foreground">{dept}</span>
+                    <span className={`text-sm font-semibold ${cls}`}>{score}% <span className="text-xs font-normal text-muted-foreground">({label})</span></span>
+                  </div>
+                  <ProgressBar value={score} max={100} color={bar} />
+                </div>
+              );
+            })}
+            {deptWellness.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No employees added yet.</p>}
+          </div>
+        </div>
+
+        {/* Individual employee wellness table */}
+        <div className="bg-card rounded-2xl p-6 border border-border">
+          <h3 className="font-semibold text-foreground mb-5">Individual Scores</h3>
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {employees.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No employees added yet.</p>}
+            {[...employees]
+              .sort((a, b) => a.wellness - b.wellness)
+              .map(emp => {
+                const { label, cls, bar } = wellnessBand(emp.wellness);
+                return (
+                  <div key={emp.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted/30 transition-colors">
+                    <Avatar name={emp.name} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-foreground truncate">{emp.name}</div>
+                      <div className="text-xs text-muted-foreground">{emp.dept}</div>
+                    </div>
+                    <div className="text-right w-24">
+                      <div className={`text-sm font-semibold ${cls}`}>{emp.wellness}%</div>
+                      <div className="text-xs text-muted-foreground">{label}</div>
+                    </div>
+                    <div className="w-16 hidden sm:block">
+                      <ProgressBar value={emp.wellness} max={100} color={bar} />
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      </div>
+
+      {/* Wellness tips */}
+      <div className="bg-card rounded-2xl p-6 border border-border">
+        <h3 className="font-semibold text-foreground mb-4">Wellness Recommendations</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            { icon: Coffee, title: "Break Reminders",      desc: "Ensure all employees take regular breaks — especially night shift staff.", color: "text-amber-400 bg-amber-500/10" },
+            { icon: Activity, title: "Fatigue Monitoring", desc: "Employees with fatigue > 65% should be flagged for schedule review.", color: "text-rose-400 bg-rose-500/10" },
+            { icon: Heart, title: "Wellness Check-ins",    desc: "HR should schedule monthly 1:1 wellness check-ins for at-risk staff.", color: "text-emerald-400 bg-emerald-500/10" },
+          ].map(({ icon: Icon2, title, desc, color }) => (
+            <div key={title} className="flex gap-4 p-4 rounded-xl bg-muted/20 border border-border">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+                <Icon2 size={18} />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-foreground mb-1">{title}</div>
+                <div className="text-xs text-muted-foreground leading-relaxed">{desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PERFORMANCE SCREEN ───────────────────────────────────────────────────────
+function PerformanceScreen() {
+  const { employees } = useStore();
+  const [sortBy, setSortBy] = useState<"performance" | "attendance" | "name">("performance");
+  const [filterDept, setFilterDept] = useState("All");
+
+  const depts = ["All", ...Array.from(new Set(employees.map(e => e.dept)))];
+
+  const avg = (arr: number[]) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+
+  const filtered = employees
+    .filter(e => filterDept === "All" || e.dept === filterDept)
+    .sort((a, b) => {
+      if (sortBy === "name")        return a.name.localeCompare(b.name);
+      if (sortBy === "attendance")  return b.attendance - a.attendance;
+      return b.performance - a.performance;
+    });
+
+  const perfAvg = avg(employees.map(e => e.performance));
+  const topPerformer = employees.reduce((best, e) => e.performance > best.performance ? e : best, employees[0]);
+  const excellentCount = employees.filter(e => e.performance >= 90).length;
+  const needsImprovCount = employees.filter(e => e.performance < 75).length;
+
+  const perfBand = (p: number) =>
+    p >= 90 ? { label: "Excellent",     cls: "text-emerald-400", bar: "bg-emerald-500",    badge: "success" as const }
+    : p >= 80 ? { label: "Good",        cls: "text-sky-400",     bar: "bg-sky-500",        badge: "info" as const }
+    : p >= 70 ? { label: "Average",     cls: "text-amber-400",   bar: "bg-amber-500",      badge: "warning" as const }
+    :           { label: "Needs Improvement", cls: "text-red-400", bar: "bg-red-500",      badge: "error" as const };
+
+  const deptPerf = Object.entries(
+    employees.reduce<Record<string, number[]>>((acc, e) => {
+      if (!acc[e.dept]) acc[e.dept] = [];
+      acc[e.dept].push(e.performance);
+      return acc;
+    }, {})
+  ).map(([dept, vals]) => ({ dept, score: avg(vals) })).sort((a, b) => b.score - a.score);
+
+  return (
+    <div className="space-y-8">
+      <SectionHeader title="Performance Management" sub="Track and review employee performance across all departments" />
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard label="Avg Performance"    value={`${perfAvg}%`}       icon={TrendingUp}   color="indigo"  change={4}  />
+        <KPICard label="Excellent Rated"    value={excellentCount}       icon={Star}         color="emerald" />
+        <KPICard label="Needs Improvement"  value={needsImprovCount}     icon={AlertCircle}  color="amber"   />
+        <KPICard label="Top Performer"      value={topPerformer?.name?.split(" ")[0] ?? "—"} icon={Award} color="sky" sub={topPerformer ? `${topPerformer.performance}%` : ""} />
+      </div>
+
+      {/* Dept bar + filters */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Dept performance */}
+        <div className="bg-card rounded-2xl p-6 border border-border">
+          <h3 className="font-semibold text-foreground mb-5">By Department</h3>
+          <div className="space-y-4">
+            {deptPerf.map(({ dept, score }) => {
+              const { cls, bar } = perfBand(score);
+              return (
+                <div key={dept}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm font-medium text-foreground truncate pr-2">{dept}</span>
+                    <span className={`text-sm font-semibold ${cls} flex-shrink-0`}>{score}%</span>
+                  </div>
+                  <ProgressBar value={score} max={100} color={bar} />
+                </div>
+              );
+            })}
+            {deptPerf.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No data yet.</p>}
+          </div>
+        </div>
+
+        {/* Employee table */}
+        <div className="lg:col-span-2 bg-card rounded-2xl p-6 border border-border">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <h3 className="font-semibold text-foreground">Employee Performance</h3>
+            <div className="flex gap-2">
+              <select value={filterDept} onChange={e => setFilterDept(e.target.value)}
+                className="px-3 py-1.5 bg-muted/50 border border-border rounded-lg text-xs text-foreground focus:outline-none">
+                {depts.map(d => <option key={d}>{d}</option>)}
+              </select>
+              <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}
+                className="px-3 py-1.5 bg-muted/50 border border-border rounded-lg text-xs text-foreground focus:outline-none">
+                <option value="performance">Sort: Performance</option>
+                <option value="attendance">Sort: Attendance</option>
+                <option value="name">Sort: Name</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px]">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="pb-3 text-left text-xs font-semibold text-muted-foreground">Employee</th>
+                  <th className="pb-3 text-left text-xs font-semibold text-muted-foreground">Dept</th>
+                  <th className="pb-3 text-center text-xs font-semibold text-muted-foreground">Performance</th>
+                  <th className="pb-3 text-center text-xs font-semibold text-muted-foreground">Attendance</th>
+                  <th className="pb-3 text-left text-xs font-semibold text-muted-foreground">Rating</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.length === 0 && (
+                  <tr><td colSpan={5} className="py-8 text-center text-sm text-muted-foreground">No employees found.</td></tr>
+                )}
+                {filtered.map(emp => {
+                  const { label, cls, badge } = perfBand(emp.performance);
+                  return (
+                    <tr key={emp.id} className="hover:bg-muted/15 transition-colors">
+                      <td className="py-3 pr-4">
+                        <div className="flex items-center gap-2.5">
+                          <Avatar name={emp.name} size="sm" />
+                          <div>
+                            <div className="text-sm font-medium text-foreground">{emp.name}</div>
+                            <div className="text-xs text-muted-foreground">{emp.role}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 pr-4 text-sm text-muted-foreground">{emp.dept}</td>
+                      <td className="py-3 pr-4 text-center">
+                        <div className={`text-sm font-bold ${cls}`}>{emp.performance}%</div>
+                      </td>
+                      <td className="py-3 pr-4 text-center">
+                        <div className="text-sm font-medium text-foreground">{emp.attendance}%</div>
+                      </td>
+                      <td className="py-3">
+                        <Badge variant={badge}>{label}</Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── GENERIC PLACEHOLDER ─────────────────────────────────────────────────────
 function PlaceholderPage({ title, icon: Icon }: { title: string; icon: any }) {
   return (
@@ -2402,7 +2654,7 @@ import { NotificationsScreen }    from "@/features/notifications/NotificationsSc
 import { AuditLogsScreen }        from "@/features/audit/AuditLogsScreen";
 import { RBACScreen }             from "@/features/rbac/RBACScreen";
 import { SettingsScreen }         from "@/features/settings/SettingsScreen";
-import { StoreProvider }          from "@/store";
+import { StoreProvider, useStore }  from "@/store";
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function AppShell() {
@@ -2466,12 +2718,14 @@ function AppShell() {
       case "reports":          return <ReportsPage />;
       case "support":          return <SupportPage />;
 
+      // ── Feature screens ───────────────────────────────────────────────────
+      case "wellness":      return wrap(<WellnessScreen />);
+      case "performance":   return wrap(<PerformanceScreen />);
+      case "organization":  return wrap(<SettingsScreen />);
+
       // ── Placeholders ─────────────────────────────────────────────────────
-      case "wellness":      return <PlaceholderPage title="Wellness Center"          icon={Heart} />;
-      case "performance":   return <PlaceholderPage title="Performance Management"   icon={TrendingUp} />;
       case "training":      return <PlaceholderPage title="Training & Development"   icon={Award} />;
       case "projects":      return <PlaceholderPage title="Projects & Tasks"         icon={FolderOpen} />;
-      case "organization":  return <PlaceholderPage title="Organization Management"  icon={Globe} />;
       case "integrations":  return <PlaceholderPage title="Integrations"             icon={Layers} />;
       case "calendar":      return <PlaceholderPage title="Calendar"                 icon={Calendar} />;
 
