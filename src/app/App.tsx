@@ -1620,24 +1620,394 @@ function LeavePage({ user }: { user: AuthUser }) {
 
 // ─── OVERTIME PAGE ────────────────────────────────────────────────────────────
 function OvertimePage() {
-  const [toast, setToast] = useState("");
-  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 3000); }
+  const { employees, addNotification, addAuditLog } = useStore();
+  const [toast, setToast]         = useState("");
+  const [toastType, setToastType] = useState<"success"|"info">("success");
+  const [showForm, setShowForm]   = useState(false);
+  const [aiPick, setAiPick]       = useState<string | null>(null);  // employee id
+
+  // Overtime requests live state
+  const [requests, setRequests] = useState([
+    { id: "ot1", employeeId: "e006", name: "Chen Wei",        dept: "Operations",     date: "2026-07-10", hours: 4, reason: "Project deadline",   status: "approved"  as const },
+    { id: "ot2", employeeId: "e001", name: "Arjun Mehta",     dept: "Engineering",    date: "2026-07-11", hours: 3, reason: "Sprint release",      status: "pending"   as const },
+    { id: "ot3", employeeId: "e009", name: "David Okonkwo",   dept: "Finance",        date: "2026-07-12", hours: 2, reason: "Month-end closing",   status: "pending"   as const },
+    { id: "ot4", employeeId: "e011", name: "James Okafor",    dept: "Marketing",      date: "2026-07-13", hours: 5, reason: "Campaign launch",     status: "rejected"  as const },
+  ]);
+
+  // Form state
+  const [form, setForm] = useState({
+    employeeId: "",
+    date: "",
+    hours: "2",
+    reason: "",
+  });
+
+  function showToast(msg: string, type: "success"|"info" = "success") {
+    setToast(msg); setToastType(type);
+    setTimeout(() => setToast(""), 3500);
+  }
+
+  // ── AI recommendation: pick best candidate from store ──────────────────────
+  // Score = high performance + high attendance + low fatigue + not already on OT
+  function getBestCandidates() {
+    const activeEmps = employees.filter(e => e.status === "active" || e.status === "remote");
+    if (activeEmps.length === 0) return [];
+    return [...activeEmps]
+      .map(e => ({
+        ...e,
+        aiScore: Math.round(
+          (e.performance * 0.4) +
+          (e.attendance  * 0.3) +
+          ((100 - e.fatigue) * 0.3)
+        ),
+      }))
+      .sort((a, b) => b.aiScore - a.aiScore)
+      .slice(0, 5);
+  }
+
+  const bestCandidates = getBestCandidates();
+
+  function handleAIPick() {
+    if (bestCandidates.length === 0) { showToast("Add employees first to get AI recommendations.", "info"); return; }
+    const top = bestCandidates[0];
+    setAiPick(top.id);
+    setForm(f => ({ ...f, employeeId: top.id }));
+    setShowForm(true);
+    showToast(`AI recommends ${top.name} — Score ${top.aiScore}/100 (Performance: ${top.performance}%, Fatigue: ${top.fatigue}%)`, "info");
+  }
+
+  function submitForm(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.employeeId || !form.date || !form.reason.trim()) return;
+    const emp = employees.find(x => x.id === form.employeeId);
+    if (!emp) return;
+    const newReq = {
+      id: `ot${Date.now()}`,
+      employeeId: form.employeeId,
+      name: emp.name,
+      dept: emp.dept,
+      date: form.date,
+      hours: parseInt(form.hours),
+      reason: form.reason,
+      status: "pending" as const,
+    };
+    setRequests(prev => [newReq, ...prev]);
+    addNotification({
+      title: "Overtime Request Submitted",
+      message: `${emp.name} requested ${form.hours}h OT on ${form.date} — ${form.reason}`,
+      type: "info",
+      priority: "medium",
+    });
+    addAuditLog({
+      user: "You",
+      action: "Submitted Overtime Request",
+      target: `${emp.name} — ${form.hours}h on ${form.date}`,
+      type: "request",
+      ip: "local",
+    });
+    showToast(`Overtime request submitted for ${emp.name}`);
+    setShowForm(false);
+    setForm({ employeeId: "", date: "", hours: "2", reason: "" });
+    setAiPick(null);
+  }
+
+  function approveRequest(id: string) {
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: "approved" as const } : r));
+    const req = requests.find(r => r.id === id);
+    addAuditLog({ user: "You", action: "Approved Overtime", target: `${req?.name} — ${req?.hours}h`, type: "approval", ip: "local" });
+    addNotification({ title: "Overtime Approved", message: `${req?.name}'s overtime request approved`, type: "success", priority: "low" });
+    showToast(`Overtime approved for ${req?.name}`);
+  }
+
+  function rejectRequest(id: string) {
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: "rejected" as const } : r));
+    const req = requests.find(r => r.id === id);
+    showToast(`Overtime rejected for ${req?.name}`);
+  }
+
+  const totalHours   = requests.filter(r => r.status === "approved").reduce((s, r) => s + r.hours, 0);
+  const pending      = requests.filter(r => r.status === "pending").length;
+  const approved     = requests.filter(r => r.status === "approved").length;
 
   return (
     <div className="p-6 space-y-6">
-      <SectionHeader title="Overtime Management" sub="Track, approve, and analyze overtime hours"
-        actions={<Btn variant="primary" icon={Plus} size="sm" onClick={() => showToast("Overtime request form opened")}>Request Overtime</Btn>}
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-[100] text-white px-5 py-3 rounded-xl text-sm font-semibold shadow-2xl flex items-center gap-2 ${toastType === "info" ? "bg-indigo-600" : "bg-emerald-600"}`}>
+          {toastType === "info" ? <Sparkles size={15} /> : <CheckCircle size={15} />}{toast}
+        </div>
+      )}
+
+      <SectionHeader
+        title="Overtime Management"
+        sub="Track, approve, and AI-optimise overtime assignments"
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleAIPick}
+              className="flex items-center gap-2 px-4 py-2 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/25 text-cyan-400 rounded-xl text-sm font-semibold transition-all"
+            >
+              <Sparkles size={14} /> AI Recommend
+            </button>
+            <button
+              onClick={() => { setShowForm(s => !s); setAiPick(null); }}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold transition-all"
+            >
+              <Plus size={14} /> Request Overtime
+            </button>
+          </div>
+        }
       />
+
+      {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard label="Total OT Hours" value="728h" change={-12} icon={Clock} color="amber" sub="This month" />
-        <KPICard label="OT Cost" value="₹9.4L" change={-8} icon={DollarSign} color="red" sub="vs ₹10.2L last month" />
-        <KPICard label="Pending Approvals" value="14" icon={ClipboardList} color="indigo" />
-        <KPICard label="AI Flag: Over-utilization" value="3" icon={AlertTriangle} color="red" sub="Employees at risk" />
+        <KPICard label="Approved OT Hours"   value={`${totalHours}h`}  icon={Clock}          color="amber"   />
+        <KPICard label="Pending Approvals"   value={pending}           icon={ClipboardList}  color="indigo"  />
+        <KPICard label="Approved Requests"   value={approved}          icon={CheckCircle}    color="emerald" />
+        <KPICard label="AI-Flagged Risk"     value={employees.filter(e => e.fatigue >= 70).length} icon={AlertTriangle} color="red" sub="High fatigue — avoid OT" />
       </div>
-      <div className="bg-card border border-border rounded-xl p-5">
-        <div className="text-sm font-semibold text-foreground mb-4">Department Overtime Analysis</div>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={overtimeData} layout="vertical" barSize={16}>
+
+      {/* ── Overtime Request Form ─────────────────────────────────────────── */}
+      {showForm && (
+        <div className="bg-card border border-indigo-500/20 rounded-2xl p-6 shadow-lg">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="font-bold text-foreground">New Overtime Request</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Fill the form or use AI Recommend to auto-select the best candidate</p>
+            </div>
+            <button onClick={() => { setShowForm(false); setAiPick(null); }} className="p-2 hover:bg-white/5 rounded-lg text-muted-foreground hover:text-foreground transition-all">
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* AI Candidate Suggestions */}
+          {bestCandidates.length > 0 && (
+            <div className="mb-5 p-4 bg-cyan-500/5 border border-cyan-500/15 rounded-xl">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles size={13} className="text-cyan-400" />
+                <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">AI Recommended Candidates</span>
+                <span className="text-xs text-muted-foreground ml-1">— ranked by performance, attendance &amp; fatigue</span>
+              </div>
+              <div className="space-y-2">
+                {bestCandidates.map((emp, i) => {
+                  const isSelected = form.employeeId === emp.id;
+                  const isAI       = aiPick === emp.id;
+                  return (
+                    <button
+                      key={emp.id}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, employeeId: emp.id }))}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
+                        isSelected
+                          ? "bg-indigo-600/20 border-indigo-500/40"
+                          : "bg-white/3 border-white/8 hover:border-white/20 hover:bg-white/6"
+                      }`}
+                    >
+                      {/* Rank badge */}
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${i === 0 ? "bg-amber-500 text-white" : "bg-white/10 text-muted-foreground"}`}>
+                        {i + 1}
+                      </div>
+                      <Avatar name={emp.name} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-foreground">{emp.name}</span>
+                          {isAI && <span className="text-[10px] px-1.5 py-0.5 bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 rounded-full font-bold">AI TOP PICK</span>}
+                          {i === 0 && !isAI && <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/20 rounded-full font-bold">BEST FIT</span>}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{emp.dept} · {emp.role}</div>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs flex-shrink-0">
+                        <div className="text-center">
+                          <div className="font-bold text-emerald-400">{emp.performance}%</div>
+                          <div className="text-muted-foreground">Perf</div>
+                        </div>
+                        <div className="text-center">
+                          <div className={`font-bold ${emp.fatigue >= 65 ? "text-red-400" : emp.fatigue >= 40 ? "text-amber-400" : "text-emerald-400"}`}>{emp.fatigue}%</div>
+                          <div className="text-muted-foreground">Fatigue</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-bold text-indigo-400">{emp.aiScore}</div>
+                          <div className="text-muted-foreground">Score</div>
+                        </div>
+                        {isSelected && <CheckCircle size={16} className="text-indigo-400" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {employees.length === 0 && (
+            <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-400">
+              No employees in store yet — add employees first for AI recommendations.
+            </div>
+          )}
+
+          {/* Form fields */}
+          <form onSubmit={submitForm} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Employee *</label>
+              <select
+                required
+                value={form.employeeId}
+                onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))}
+                className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+              >
+                <option value="">Select employee…</option>
+                {employees
+                  .filter(e => e.status === "active" || e.status === "remote")
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map(e => (
+                    <option key={e.id} value={e.id}>{e.name} — {e.dept} (Fatigue: {e.fatigue}%)</option>
+                  ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Date *</label>
+              <input
+                required
+                type="date"
+                value={form.date}
+                onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Overtime Hours *</label>
+              <select
+                value={form.hours}
+                onChange={e => setForm(f => ({ ...f, hours: e.target.value }))}
+                className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+              >
+                {["1","2","3","4","5","6","8"].map(h => <option key={h} value={h}>{h} hour{h !== "1" ? "s" : ""}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Reason *</label>
+              <input
+                required
+                value={form.reason}
+                onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
+                placeholder="e.g. Sprint release, client deadline…"
+                className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+              />
+            </div>
+
+            {/* Fatigue warning */}
+            {form.employeeId && (() => {
+              const emp = employees.find(x => x.id === form.employeeId);
+              if (!emp) return null;
+              if (emp.fatigue >= 65) return (
+                <div className="md:col-span-2 flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                  <AlertTriangle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-400"><strong>{emp.name}</strong> has a fatigue score of <strong>{emp.fatigue}%</strong> — assigning overtime is not recommended. Consider a lower-fatigue colleague.</p>
+                </div>
+              );
+              if (emp.fatigue >= 40) return (
+                <div className="md:col-span-2 flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                  <AlertCircle size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-400"><strong>{emp.name}</strong> has moderate fatigue ({emp.fatigue}%). Monitor closely after overtime.</p>
+                </div>
+              );
+              return (
+                <div className="md:col-span-2 flex items-start gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                  <CheckCircle size={14} className="text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-emerald-400"><strong>{emp.name}</strong> is in good shape (fatigue: {emp.fatigue}%). Safe to assign overtime.</p>
+                </div>
+              );
+            })()}
+
+            <div className="md:col-span-2 flex justify-end gap-3 pt-2 border-t border-border">
+              <button type="button" onClick={() => { setShowForm(false); setAiPick(null); }}
+                className="px-4 py-2 text-sm font-semibold rounded-xl border border-border hover:bg-muted/50 transition-colors">
+                Cancel
+              </button>
+              <button type="submit"
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-all">
+                Submit Request
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── Overtime Requests Table ───────────────────────────────────────── */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="text-sm font-semibold text-foreground">Overtime Requests</div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="w-2 h-2 rounded-full bg-amber-400" /> Pending
+            <div className="w-2 h-2 rounded-full bg-emerald-400 ml-2" /> Approved
+            <div className="w-2 h-2 rounded-full bg-red-400 ml-2" /> Rejected
+          </div>
+        </div>
+        {requests.length === 0 ? (
+          <div className="p-12 text-center">
+            <Clock size={28} className="text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">No overtime requests yet. Click "Request Overtime" to add one.</p>
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                {["Employee", "Department", "Date", "Hours", "Reason", "Status", "Actions"].map(h => (
+                  <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {requests.map(req => (
+                <tr key={req.id} className="border-b border-border/50 hover:bg-white/3 transition-colors">
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <Avatar name={req.name} size="sm" />
+                      <span className="font-medium text-foreground">{req.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3 text-muted-foreground text-xs">{req.dept}</td>
+                  <td className="px-5 py-3 text-muted-foreground text-xs font-mono">{req.date}</td>
+                  <td className="px-5 py-3">
+                    <span className="font-bold text-foreground">{req.hours}h</span>
+                  </td>
+                  <td className="px-5 py-3 text-xs text-muted-foreground max-w-[160px] truncate">{req.reason}</td>
+                  <td className="px-5 py-3">
+                    <Badge variant={req.status === "approved" ? "success" : req.status === "rejected" ? "danger" : "warning"}>
+                      {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                    </Badge>
+                  </td>
+                  <td className="px-5 py-3">
+                    {req.status === "pending" && (
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => approveRequest(req.id)}
+                          className="px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-semibold transition-all flex items-center gap-1">
+                          <CheckCircle size={11} /> Approve
+                        </button>
+                        <button onClick={() => rejectRequest(req.id)}
+                          className="px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/20 rounded-lg text-xs font-semibold transition-all flex items-center gap-1">
+                          <X size={11} /> Reject
+                        </button>
+                      </div>
+                    )}
+                    {req.status !== "pending" && (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Dept chart */}
+      <div className="bg-card border border-border rounded-2xl p-5">
+        <div className="text-sm font-semibold text-foreground mb-4">Department Overtime Breakdown</div>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={overtimeData} layout="vertical" barSize={14}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
             <XAxis type="number" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
             <YAxis dataKey="dept" type="category" tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} width={80} />
@@ -1646,11 +2016,6 @@ function OvertimePage() {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      {toast && (
-        <div className="fixed bottom-6 right-6 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium shadow-2xl z-50 flex items-center gap-2">
-          <CheckCircle size={15} />{toast}
-        </div>
-      )}
     </div>
   );
 }
