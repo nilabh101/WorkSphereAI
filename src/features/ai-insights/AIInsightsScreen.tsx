@@ -46,7 +46,7 @@ function buildInsights(employees: ReturnType<typeof useStore>["employees"]) {
 }
 
 export function AIInsightsScreen() {
-  const { employees } = useStore();
+  const { employees, editEmployee, addNotification, addAuditLog } = useStore();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [applied,   setApplied]   = useState<Set<string>>(new Set());
 
@@ -62,7 +62,28 @@ export function AIInsightsScreen() {
 
   function applyRec(id: string) {
     setApplied(prev => new Set([...prev, id]));
-    // In a real app this would call the backend / update shifts
+    // Find the employee and actually update their fatigue/wellness scores
+    const insight = allInsights.find(i => i.id === id);
+    if (!insight) return;
+    const emp = employees.find(e => e.name === insight.employee);
+    if (!emp) return;
+    // Applying the recommendation: reduce fatigue by 20-25pts, boost wellness by 10pts
+    const newFatigue  = Math.max(0, emp.fatigue - (insight.riskLevel === "high" ? 25 : 18));
+    const newWellness = Math.min(100, emp.wellness + 10);
+    editEmployee(emp.id, { fatigue: newFatigue, wellness: newWellness, shift: "Day" });
+    addNotification({
+      title: "AI Recommendation Applied",
+      message: `${emp.name}'s shifts have been adjusted. Fatigue reduced from ${emp.fatigue}% → ${newFatigue}%. Wellness boosted to ${newWellness}%.`,
+      type: "success",
+      priority: "medium",
+    });
+    addAuditLog({
+      user: "AI System",
+      action: "Applied AI Recommendation",
+      target: `${emp.name} — fatigue reduced to ${newFatigue}%`,
+      type: "ai",
+      ip: "system",
+    });
   }
 
   return (

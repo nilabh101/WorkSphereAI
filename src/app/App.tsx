@@ -1163,12 +1163,51 @@ function ShiftPlanningPage({ user }: { user: AuthUser }) {
 
 // ─── FATIGUE CENTER ───────────────────────────────────────────────────────────
 function FatigueCenterPage() {
-  const highRisk = EMPLOYEES.filter(e => e.fatigue >= 70);
-  const medRisk = EMPLOYEES.filter(e => e.fatigue >= 40 && e.fatigue < 70);
-  const lowRisk = EMPLOYEES.filter(e => e.fatigue < 40);
+  const { employees, editEmployee, addNotification, addAuditLog } = useStore();
+  const [alertedIds, setAlertedIds] = useState<Set<string>>(new Set());
+  const [toastMsg,   setToastMsg]   = useState("");
+
+  function showFatigueToast(msg: string) {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(""), 3000);
+  }
+
+  function alertManager(emp: (typeof employees)[0]) {
+    setAlertedIds(prev => new Set([...prev, emp.id]));
+    // Reduce fatigue slightly (rest period applied), boost wellness
+    const newFatigue  = Math.max(0, emp.fatigue - 15);
+    const newWellness = Math.min(100, emp.wellness + 8);
+    editEmployee(emp.id, { fatigue: newFatigue, wellness: newWellness });
+    addNotification({
+      title: "⚠️ Fatigue Alert Sent",
+      message: `Manager notified about ${emp.name}. Rest period scheduled. Fatigue updated: ${emp.fatigue}% → ${newFatigue}%.`,
+      type: "warning",
+      priority: "high",
+    });
+    addAuditLog({
+      user: "System",
+      action: "Fatigue Alert Triggered",
+      target: `${emp.name} — fatigue ${emp.fatigue}% → ${newFatigue}%`,
+      type: "ai",
+      ip: "system",
+    });
+    showFatigueToast(`Alert sent for ${emp.name}. Fatigue updated to ${newFatigue}%.`);
+  }
+
+  const empList  = employees.length > 0 ? employees : EMPLOYEES;
+  const highRisk = empList.filter(e => e.fatigue >= 70);
+  const medRisk  = empList.filter(e => e.fatigue >= 40 && e.fatigue < 70);
+  const lowRisk  = empList.filter(e => e.fatigue < 40);
 
   return (
     <div className="p-6 space-y-6">
+      {/* Toast */}
+      {toastMsg && (
+        <div className="fixed top-4 right-4 z-[100] bg-amber-600 text-white px-5 py-3 rounded-xl text-sm font-semibold shadow-2xl flex items-center gap-2 animate-in slide-in-from-top-2">
+          <AlertTriangle size={15} />{toastMsg}
+        </div>
+      )}
+
       <SectionHeader title="Fatigue Intelligence Center" sub="AI-powered burnout detection and risk analysis"
         actions={<>
           <Badge variant="ai"><Sparkles size={10} />AI Active</Badge>
@@ -1182,19 +1221,19 @@ function FatigueCenterPage() {
           <div className="flex items-center gap-2 mb-3"><AlertTriangle size={18} className="text-red-400" /><span className="text-sm font-semibold text-red-400">High Risk</span></div>
           <div className="text-3xl font-bold font-mono text-red-400">{highRisk.length}</div>
           <div className="text-sm text-red-300/70 mt-1">Employees — Immediate action required</div>
-          <ProgressBar value={highRisk.length} max={EMPLOYEES.length} color="bg-red-500" />
+          <ProgressBar value={highRisk.length} max={empList.length} color="bg-red-500" />
         </div>
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-3"><AlertCircle size={18} className="text-amber-400" /><span className="text-sm font-semibold text-amber-400">Medium Risk</span></div>
           <div className="text-3xl font-bold font-mono text-amber-400">{medRisk.length}</div>
           <div className="text-sm text-amber-300/70 mt-1">Employees — Monitor closely</div>
-          <ProgressBar value={medRisk.length} max={EMPLOYEES.length} color="bg-amber-500" />
+          <ProgressBar value={medRisk.length} max={empList.length} color="bg-amber-500" />
         </div>
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-3"><CheckCircle size={18} className="text-emerald-400" /><span className="text-sm font-semibold text-emerald-400">Low Risk</span></div>
           <div className="text-3xl font-bold font-mono text-emerald-400">{lowRisk.length}</div>
           <div className="text-sm text-emerald-300/70 mt-1">Employees — Healthy status</div>
-          <ProgressBar value={lowRisk.length} max={EMPLOYEES.length} color="bg-emerald-500" />
+          <ProgressBar value={lowRisk.length} max={empList.length} color="bg-emerald-500" />
         </div>
       </div>
 
@@ -1259,7 +1298,7 @@ function FatigueCenterPage() {
             </tr>
           </thead>
           <tbody>
-            {[...EMPLOYEES].sort((a, b) => b.fatigue - a.fatigue).map(e => (
+            {[...empList].sort((a, b) => b.fatigue - a.fatigue).map(e => (
               <tr key={e.id} className="border-b border-border/50 hover:bg-white/3 transition-colors">
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-3">
@@ -1286,7 +1325,11 @@ function FatigueCenterPage() {
                   {e.fatigue >= 70 ? "Mandatory rest period — remove from night shifts" : e.fatigue >= 40 ? "Monitor closely, consider schedule adjustment" : "No action needed"}
                 </td>
                 <td className="px-4 py-3">
-                  {e.fatigue >= 60 && <Btn variant="danger" size="sm" onClick={() => {}}>Alert Manager</Btn>}
+                  {e.fatigue >= 60 && (
+                    alertedIds.has(e.id)
+                      ? <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg"><CheckCircle size={12} />Alerted</span>
+                      : <Btn variant="danger" size="sm" onClick={() => alertManager(e)}>Alert Manager</Btn>
+                  )}
                 </td>
               </tr>
             ))}
