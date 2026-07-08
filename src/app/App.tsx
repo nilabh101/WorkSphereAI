@@ -2379,6 +2379,7 @@ function CommandPalette({ onClose, setPage }: { onClose: () => void; setPage: (p
 // ─── WELLNESS SCREEN ─────────────────────────────────────────────────────────
 function WellnessScreen() {
   const { employees } = useStore();
+  const [showChat, setShowChat] = useState(false);
 
   const avg = (arr: number[]) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
 
@@ -2403,17 +2404,51 @@ function WellnessScreen() {
 
   return (
     <div className="space-y-8">
-      <SectionHeader title="Wellness Center" sub="Employee health, fatigue and wellbeing at a glance" />
+      <SectionHeader
+        title="Wellness Center"
+        sub="Employee health, fatigue and wellbeing at a glance"
+        actions={
+          <button
+            onClick={() => setShowChat(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 rounded-xl text-sm font-semibold transition-all"
+          >
+            <Heart size={14} className="animate-pulse" />
+            Talk to Aura AI
+          </button>
+        }
+      />
+
+      {/* Aura banner */}
+      <div
+        onClick={() => setShowChat(true)}
+        className="cursor-pointer flex items-center gap-4 p-5 bg-gradient-to-r from-rose-950/40 to-pink-950/30 border border-rose-500/20 rounded-2xl hover:border-rose-500/40 transition-all group"
+      >
+        <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+          <Heart size={22} className="text-rose-400" />
+        </div>
+        <div className="flex-1">
+          <div className="text-sm font-bold text-foreground mb-0.5 flex items-center gap-2">
+            Aura — AI Wellness Companion
+            <span className="text-[10px] font-semibold px-2 py-0.5 bg-rose-500/15 text-rose-400 border border-rose-500/20 rounded-full">Gemini AI</span>
+          </div>
+          <div className="text-xs text-muted-foreground leading-relaxed">
+            Feeling stressed, burnt out, or just need someone to talk to? Aura is a confidential AI wellness assistant available 24/7 to support your mental health.
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-rose-400 font-semibold group-hover:gap-2.5 transition-all flex-shrink-0">
+          Start chat <ArrowRight size={14} />
+        </div>
+      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard label="Avg Wellness Score"    value={`${wellnessAvg}%`}    icon={Heart}        color="emerald" change={2} />
-        <KPICard label="Avg Fatigue Score"     value={`${fatigueAvg}%`}     icon={Brain}        color="amber"   change={-3} />
-        <KPICard label="Avg Attendance"        value={`${attendanceAvg}%`}  icon={CheckCircle}  color="indigo"  />
-        <KPICard label="At-Risk Employees"     value={atRiskCount}          icon={AlertTriangle} color={atRiskCount > 0 ? "red" : "emerald"} />
+        <KPICard label="Avg Wellness Score"  value={`${wellnessAvg}%`}   icon={Heart}         color="emerald" change={2}  />
+        <KPICard label="Avg Fatigue Score"   value={`${fatigueAvg}%`}    icon={Brain}         color="amber"   change={-3} />
+        <KPICard label="Avg Attendance"      value={`${attendanceAvg}%`} icon={CheckCircle}   color="indigo"  />
+        <KPICard label="At-Risk Employees"   value={atRiskCount}         icon={AlertTriangle} color={atRiskCount > 0 ? "red" : "emerald"} />
       </div>
 
-      {/* Dept wellness bars */}
+      {/* Dept wellness bars + individual scores */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-card rounded-2xl p-6 border border-border">
           <h3 className="font-semibold text-foreground mb-5">Wellness by Department</h3>
@@ -2434,7 +2469,6 @@ function WellnessScreen() {
           </div>
         </div>
 
-        {/* Individual employee wellness table */}
         <div className="bg-card rounded-2xl p-6 border border-border">
           <h3 className="font-semibold text-foreground mb-5">Individual Scores</h3>
           <div className="space-y-3 max-h-80 overflow-y-auto">
@@ -2469,9 +2503,9 @@ function WellnessScreen() {
         <h3 className="font-semibold text-foreground mb-4">Wellness Recommendations</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            { icon: Coffee, title: "Break Reminders",      desc: "Ensure all employees take regular breaks — especially night shift staff.", color: "text-amber-400 bg-amber-500/10" },
-            { icon: Activity, title: "Fatigue Monitoring", desc: "Employees with fatigue > 65% should be flagged for schedule review.", color: "text-rose-400 bg-rose-500/10" },
-            { icon: Heart, title: "Wellness Check-ins",    desc: "HR should schedule monthly 1:1 wellness check-ins for at-risk staff.", color: "text-emerald-400 bg-emerald-500/10" },
+            { icon: Coffee,    title: "Break Reminders",      desc: "Ensure all employees take regular breaks — especially night shift staff.", color: "text-amber-400 bg-amber-500/10" },
+            { icon: Activity,  title: "Fatigue Monitoring",   desc: "Employees with fatigue > 65% should be flagged for schedule review.",      color: "text-rose-400 bg-rose-500/10"  },
+            { icon: Heart,     title: "Wellness Check-ins",   desc: "HR should schedule monthly 1:1 wellness check-ins for at-risk staff.",     color: "text-emerald-400 bg-emerald-500/10" },
           ].map(({ icon: Icon2, title, desc, color }) => (
             <div key={title} className="flex gap-4 p-4 rounded-xl bg-muted/20 border border-border">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
@@ -2485,6 +2519,9 @@ function WellnessScreen() {
           ))}
         </div>
       </div>
+
+      {/* Aura chatbot panel */}
+      {showChat && <WellnessChatbot onClose={() => setShowChat(false)} floating={true} />}
     </div>
   );
 }
@@ -2654,6 +2691,7 @@ import { NotificationsScreen }    from "@/features/notifications/NotificationsSc
 import { AuditLogsScreen }        from "@/features/audit/AuditLogsScreen";
 import { RBACScreen }             from "@/features/rbac/RBACScreen";
 import { SettingsScreen }         from "@/features/settings/SettingsScreen";
+import { WellnessChatbot }         from "@/features/wellness/WellnessChatbot";
 import { StoreProvider, useStore }  from "@/store";
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
